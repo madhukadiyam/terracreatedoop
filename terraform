@@ -1,0 +1,244 @@
+Terraform Setup and Provisioning
+
+Download terraform  from https://www.terraform.io/downloads.html 
+
+Set up the below
+
+
+on linux
+
+mkdir terraform
+unzip the .zip file
+export PATH=/e/terraform/:$PATH
+echo $PATH
+
+or on windows  set in environment variables
+
+then you should be able to trigger the command terraform from any location.
+
+terraform –-version
+
+
+get the IAM access keys from AWS and keep it ready.
+
+
+mkdir my_project
+
+cd my_project
+
+create an AWS instance using Terraform
+
+create_inst.tf
+==============================================================
+
+provider "aws" {
+  access_key = "xxxxxxxxxxxxxxxxxxxxxxxxx"
+  secret_key = "xxxxxxxxxxxxxxxxx"
+  region = "ap-south-1"
+}
+
+resource "aws_instance" "terraform_example" {
+  ami = "ami-xxxxxxxxxxxxxxxx"
+  instance_type = "t2.micro"
+}
+
+================================================================== 
+
+
+terraform init 
+
+ To initialize the terraform projet
+
+terraform plan 
+
+will validate the templates for any errors.
+
+terraform apply 
+
+ will create an instance on your specified region in AWS.
+ We can check the same on AWS console.
+terraform destroy   -- will deystory what it has created.
+
+
+
+
+
+Using  Variables and separating the code into multiplpe files.
+
+
+provider.tf 
+
+========================================
+provider "aws" {
+  access_key = "${var.AWS_ACCESS_KEY}"
+  secret_key = "${var.AWS_SECRET_KEY}"
+  region = "${var.AWS_REGION}"
+}
+
+vars.tf 
+
+
+variable “AWS_ACCESS_KEY” {}
+variable “AWS_SECRET_KEY” {}
+variable “AWS_REGION” {
+  default = “ap-south-1”
+}
+
+
+
+
+
+Terraform.tfvars
+
+
+AWS_ACCESS_KEY = ””
+AWS_SECRET_KEY = ””
+AWS_REGION = “”
+
+
+
+create_inst.tf 
+
+
+resource "aws_instance" "terraform_example" {
+  ami = "ami-xxxxxxxxxxxxxxxx"
+  instance_type = "t2.micro"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+Software Provisioning using Terraform
+
+
+Use the files provider.tf , terrafprm.tfvars from above and 
+Create a file called my_script.sh with your own linux commands.
+ Create create_inst.tf and vars.tf files as below
+
+create_inst.tf
+======================================================================================
+resource "aws_instance" "terraform_example" {
+  ami = "ami-0912f71e06545ad88"
+  instance_type = "t2.micro"
+  key_name = “<your key name on AWS> "
+    
+  provisioner "file" {
+    source = "script.sh"
+    destination = "/tmp/script.sh"
+  }
+  
+  connection {
+    user = "${var.INSTANCE_USERNAME}"
+    private_key = "${file("${var.PATH_TO_PVT_KEY}")}"
+  }
+}
+
+
+
+vars.tf
+
+variable AWS_ACCESS_KEY {}
+variable AWS_SECRET_KEY {}
+variable AWS_REGION {
+  default = "ap-south-1"
+} 
+
+variable PATH_TO_PVT_KEY {
+  default = "< path of your pvt key on your machine( .pem) >"
+}
+
+variable INSTANCE_USERNAME {
+  default = "ec2-user"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Windows Server Provisioning using terraform
+
+
+create_inst.tf 
+
+
+resource "aws_instance" "terraform_example" {
+  ami = "ami-0912f71e06545ad88"
+  instance_type = "t2.micro"
+  key_name = ‘<your key name on AWS> "
+  userdata = <<EOF
+ <powershell>
+ net user ${var.INSTANCE_USERNAME} ${var.INSTANCE_PASSWORD} /add
+ net localgroup administrators ${var.INSTANCE_USERNAME} /add
+
+ winrm quickconfig –q
+ winrm set winrm/config/winrs ‘@{MaxMemoryPerShellMB=”300”}’
+ winrm set winrm/config ‘@{MaxTimeoutMS=”180000”}’
+ winrm set winrm/config/service ‘@{AllowUnencrypted=”true”}’
+ winrm set winrm/config/service/auth ‘@{Basic=”true”}’
+ netsh advfirewall firewall add rule name=”WinRM 5985” protocol=TCP dir=in localport=5985 action=allow
+netsh advfirewall firewall add rule name=”WinRM 5986” protocol=TCP dir=in localport=5986 action=allow
+net stop winrm
+sc.exe config winrm start=auto
+net start winrm 
+</powershell>
+EOF 
+  connection {
+    type = “winrm”
+    user = "${var.INSTANCE_USERNAME}"
+    password = "${var.INSTANCE_PASSWORD"  }
+}
+
+
+
+
+
+vars.tf
+
+
+variable AWS_ACCESS_KEY {}
+variable AWS_SECRET_KEY {}
+variable AWS_REGION {
+  default = "ap-south-1"
+} 
+
+variable PATH_TO_PVT_KEY {
+  default = "< path of your pvt key on your machine( .pem)>"
+}
+
+variable INSTANCE_USERNAME {
+  default = "administrator"
+}
+variable INSTANCE_PASSWORD { }
+
+
+
+
+ 
+
+
